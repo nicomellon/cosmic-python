@@ -4,12 +4,17 @@ from allocation.domain.model import Batch
 
 
 class AbstractRepository(abc.ABC):
+
     @abc.abstractmethod
     def add(self, batch: Batch) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
     def get(self, reference) -> Batch:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def list(self) -> list[Batch]:
         raise NotImplementedError
 
 
