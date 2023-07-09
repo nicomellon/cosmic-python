@@ -1,26 +1,24 @@
 import pytest
 
 from allocation.adapters import repository
+from allocation.domain import model
 from allocation.service_layer import services, unit_of_work
 
 
-class FakeRepository(repository.AbstractRepository):
-    def __init__(self, batches):
-        self._batches = set(batches)
+class FakeProductRepository(repository.AbstractProductRepository):
+    def __init__(self, products):
+        self._products = set(products)
 
-    def add(self, batch):
-        self._batches.add(batch)
+    def add(self, product):
+        self._products.add(product)
 
-    def get(self, reference):
-        return next(b for b in self._batches if b.reference == reference)
-
-    def list(self):
-        return list(self._batches)
+    def get(self, sku):
+        return next((p for p in self._products if p.sku == sku), None)
 
 
 class FakeUnitOfWork(unit_of_work.AbstractUnitOfWork):
     def __init__(self):
-        self.batches = FakeRepository([])
+        self.products = FakeProductRepository([])
         self.committed = False
 
     def __enter__(self):
@@ -39,7 +37,7 @@ class FakeUnitOfWork(unit_of_work.AbstractUnitOfWork):
 def test_add_batch():
     uow = FakeUnitOfWork()
     services.add_batch("b1", "CRUNCHY-ARMCHAIR", 100, None, uow)
-    assert uow.batches.get("b1") is not None
+    assert uow.products.get("CRUNCHY-ARMCHAIR") is not None
     assert uow.committed is True
 
 
@@ -50,7 +48,6 @@ def test_allocate_returns_allocation():
     assert result == "batch1"
 
 
-# TODO: 
 def test_allocate_errors_for_invalid_sku():
     uow = FakeUnitOfWork()
     services.add_batch("b1", "AREALSKU", 100, None, uow)

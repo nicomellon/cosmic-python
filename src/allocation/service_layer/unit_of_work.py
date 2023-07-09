@@ -9,7 +9,7 @@ from allocation.adapters import repository
 
 
 class AbstractUnitOfWork(AbstractContextManager):
-    batches: repository.AbstractRepository
+    products: repository.AbstractProductRepository
 
     @abstractmethod
     def commit(self):
@@ -33,7 +33,7 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
 
     def __enter__(self):
         self.session = self.session_factory()
-        self.batches = repository.SqlAlchemyRepository(self.session)
+        self.products = repository.SqlAlchemyRepository(self.session)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
