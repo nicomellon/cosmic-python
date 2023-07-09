@@ -1,18 +1,18 @@
 import pytest
 
 from allocation.adapters import repository
-from allocation.domain import model
 from allocation.service_layer import services, unit_of_work
 
 
 class FakeProductRepository(repository.AbstractProductRepository):
     def __init__(self, products):
+        super().__init__()
         self._products = set(products)
 
-    def add(self, product):
+    def _add(self, product):
         self._products.add(product)
 
-    def get(self, sku):
+    def _get(self, sku):
         return next((p for p in self._products if p.sku == sku), None)
 
 
@@ -27,7 +27,7 @@ class FakeUnitOfWork(unit_of_work.AbstractUnitOfWork):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.rollback()
 
-    def commit(self):
+    def _commit(self):
         self.committed = True
 
     def rollback(self):

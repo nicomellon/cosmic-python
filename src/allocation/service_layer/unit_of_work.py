@@ -6,13 +6,24 @@ from sqlalchemy.orm import sessionmaker
 
 from allocation import config
 from allocation.adapters import repository
+from allocation.service_layer import messagebus
 
 
 class AbstractUnitOfWork(AbstractContextManager):
     products: repository.AbstractProductRepository
 
-    @abstractmethod
     def commit(self):
+            self._commit()
+            self.publish_events()
+
+    def publish_events(self):
+        for product in self.products.seen:
+            while product.events:
+                event = product.events.pop(0)
+                messagebus.handle(event)
+
+    @abstractmethod
+    def _commit(self):
         raise NotImplementedError
 
     @abstractmethod
@@ -41,8 +52,8 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
         self.session.rollback()
         self.session.close()
 
-    def commit(self):
-        self.session.commit()
-
     def rollback(self):
         self.session.rollback()
+
+    def _commit(self):  #(1)
+        self.session.commit()

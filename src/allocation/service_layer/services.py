@@ -24,12 +24,12 @@ def add_batch(
 def allocate(
     orderid: str, sku: str, qty: int,
     uow: unit_of_work.AbstractUnitOfWork,
-) -> str:
+) -> str | None:
     line = model.OrderLine(orderid, sku, qty)
     with uow:
-        product = uow.products.get(line.sku)
+        product = uow.products.get(sku=line.sku)
         if product is None:
             raise InvalidSku(f"Invalid sku {line.sku}")
         batchref = product.allocate(line)
         uow.commit()
-    return batchref
+        return batchref
