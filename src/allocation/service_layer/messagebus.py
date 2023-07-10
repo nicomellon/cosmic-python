@@ -1,6 +1,8 @@
 import logging
 from typing import Callable
 
+from tenacity import Retrying, RetryError, stop_after_attempt, wait_exponential
+
 from allocation.domain import commands, events
 from allocation.service_layer import handlers, unit_of_work
 
@@ -45,11 +47,20 @@ def handle_event(
 ):
     for handler in EVENT_HANDLERS[type(event)]:
         try:
-            logger.debug("handling event %s with handler %s", event, handler)
-            handler(event, uow=uow)
-            queue.extend(uow.collect_new_events())
-        except Exception:
-            logger.exception("Exception handling event %s", event)
+            for attempt in Retrying(
+                stop=stop_after_attempt(3),
+                wait=wait_exponential()
+            ):
+
+                with attempt:
+                    logger.debug("handling event %s with handler %s", event, handler)
+                    handler(event, uow=uow)
+                    queue.extend(uow.collect_new_events())
+        except RetryError as retry_failure:
+            logger.error(
+                "Failed to handle event %s times, giving up!",
+                retry_failure.last_attempt.attempt_number
+            )
             continue
 
 
