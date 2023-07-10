@@ -1,7 +1,11 @@
+import shutil
+import subprocess
 import time
 from pathlib import Path
 
 import pytest
+import redis
+from redis.exceptions import RedisError
 import requests
 from requests.exceptions import ConnectionError
 from sqlalchemy.exc import OperationalError
@@ -51,6 +55,17 @@ def wait_for_webapp_to_come_up():
         except ConnectionError:
             time.sleep(0.5)
     pytest.fail("API never came up")
+
+
+def wait_for_redis_to_come_up():
+    deadline = time.time() + 5
+    r = redis.Redis(**config.get_redis_host_and_port())
+    while time.time() < deadline:
+        try:
+            return r.ping()
+        except RedisError:
+            time.sleep(0.5)
+    pytest.fail('Redis never came up')
 
 
 @pytest.fixture(scope="session")
@@ -117,3 +132,12 @@ def restart_api():
     (Path(__file__).parent / "flask_app.py").touch()
     time.sleep(0.5)
     wait_for_webapp_to_come_up()
+
+
+@pytest.fixture
+def restart_redis_pubsub():
+    wait_for_redis_to_come_up()
+    if not shutil.which('docker-compose'):
+        print('skipping restart, assumes running in container')
+        return
+    subprocess.run(['docker-compose', 'restart', '-t', '0', 'redis_pubsub'])

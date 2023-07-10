@@ -1,5 +1,6 @@
 from allocation.adapters import email
 from allocation.domain import commands, events, model
+from allocation.entrypoints import redis_eventpublisher
 from allocation.service_layer import unit_of_work
 
 
@@ -52,3 +53,10 @@ def change_batch_quantity(
         product = uow.products.get_by_batchref(batchref=command.ref)
         product.change_batch_quantity(ref=command.ref, qty=command.qty)
         uow.commit()
+
+
+def publish_allocated_event(
+    event: events.Allocated,
+    uow: unit_of_work.AbstractUnitOfWork,
+):
+    redis_eventpublisher.publish("line_allocated", event)

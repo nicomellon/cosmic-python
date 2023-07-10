@@ -1,22 +1,25 @@
-all: down build up test
-
 build:
-	docker compose build
+	docker-compose build
 
-up:
-	docker compose up -d
+services:
+	docker-compose up -d
 
-down:
-	docker compose down --remove-orphans
-
-test: up
-	docker compose run --rm --no-deps --entrypoint=pytest api /tests/unit /tests/integration /tests/e2e
+test:
+	docker-compose run --rm --entrypoint='pytest /tests' api
 
 unit-tests:
-	docker compose run --rm --no-deps --entrypoint=pytest api /tests/unit
+	docker-compose run --rm --entrypoint='pytest /tests/unit' api
 
-integration-tests: up
-	docker compose run --rm --no-deps --entrypoint=pytest api /tests/integration
+integration-tests:
+	docker-compose run --rm --entrypoint='pytest /tests/integration' api
 
-e2e-tests: up
-	docker compose run --rm --no-deps --entrypoint=pytest api /tests/e2e
+e2e-tests:
+	docker-compose run --rm --entrypoint='pytest /tests/e2e' api
+
+logs:
+	docker-compose logs --tail=25 api redis_pubsub
+
+down:
+	docker-compose down --remove-orphans
+
+all: down build services test
