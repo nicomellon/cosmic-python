@@ -1,5 +1,5 @@
 from allocation.adapters import email
-from allocation.domain import events, model
+from allocation.domain import commands, events, model
 from allocation.service_layer import unit_of_work
 
 
@@ -8,7 +8,7 @@ class InvalidSku(Exception):
 
 
 def add_batch(
-    event: events.BatchCreated,
+    event: commands.CreateBatch,
     uow: unit_of_work.AbstractUnitOfWork,
 ) -> None:
     with uow:
@@ -21,7 +21,7 @@ def add_batch(
 
 
 def allocate(
-    event: events.AllocationRequired,
+    event: commands.Allocate,
     uow: unit_of_work.AbstractUnitOfWork,
 ) -> str | None:
     line = model.OrderLine(event.orderid, event.sku, event.qty)
@@ -45,7 +45,7 @@ def send_out_of_stock_notification(
 
 
 def change_batch_quantity(
-    event: events.BatchQuantityChanged,
+    event: commands.ChangeBatchQuantity,
     uow: unit_of_work.AbstractUnitOfWork,
 ):
     with uow:

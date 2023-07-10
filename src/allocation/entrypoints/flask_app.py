@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import Flask, request, jsonify
 
 from allocation.adapters import orm
-from allocation.domain import events
+from allocation.domain import commands
 from allocation.service_layer import messagebus, unit_of_work
 from allocation.service_layer.handlers import InvalidSku
 
@@ -16,7 +16,7 @@ def add_batch():
     eta = request.json["eta"]
     if eta is not None:
         eta = datetime.fromisoformat(eta).date()
-    event = events.BatchCreated(
+    event = commands.CreateBatch(
         request.json["ref"], request.json["sku"], request.json["qty"], eta,
     )
     messagebus.handle(event, unit_of_work.SqlAlchemyUnitOfWork())
@@ -26,7 +26,7 @@ def add_batch():
 @app.route("/allocate", methods=["POST"])
 def allocate_endpoint():
     try:
-        event = events.AllocationRequired(
+        event = commands.Allocate(
             request.json["orderid"], request.json["sku"], request.json["qty"]
         )
         results = messagebus.handle(event, unit_of_work.SqlAlchemyUnitOfWork())
