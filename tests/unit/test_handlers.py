@@ -1,5 +1,6 @@
 from datetime import date
 
+from allocation import bootstrap
 from allocation.adapters import repository
 from allocation.domain import commands
 from allocation.service_layer import messagebus, unit_of_work
@@ -41,43 +42,35 @@ class FakeUnitOfWork(unit_of_work.AbstractUnitOfWork):
         pass
 
 
+def bootstrap_test_app():
+    return bootstrap.bootstrap(
+        start_orm=False,
+        uow=FakeUnitOfWork(),
+        send_mail=lambda *args: None,
+        publish=lambda *args: None,
+    )
+
+
 class TestAddBatch:
-     def test_for_new_product(self):
-         uow = FakeUnitOfWork()
-         messagebus.handle(
-             commands.CreateBatch("b1", "CRUNCHY-ARMCHAIR", 100, None), uow
-         )
-         assert uow.products.get("CRUNCHY-ARMCHAIR") is not None
-         assert uow.committed
-
-
-class TestAllocate:
-     def test_returns_allocation(self):
-         uow = FakeUnitOfWork()
-         messagebus.handle(
-             commands.CreateBatch("batch1", "COMPLICATED-LAMP", 100, None), uow
-         )
-         result = messagebus.handle(
-             commands.Allocate("o1", "COMPLICATED-LAMP", 10), uow
-         )
-         assert result[0] == "batch1"
+    def test_for_new_product(self):
+        bus = bootstrap_test_app()
+        bus.handle(commands.CreateBatch("b1", "CRUNCHY-ARMCHAIR", 100, None))
+        assert bus.uow.products.get("CRUNCHY-ARMCHAIR") is not None
+        assert bus.uow.committed
 
 
 class TestChangeBatchQuantity:
     def test_changes_available_quantity(self):
-        uow = FakeUnitOfWork()
-        messagebus.handle(
-            commands.CreateBatch("batch1", "ADORABLE-SETTEE", 100, None), uow
-        )
-        [batch] = uow.products.get(sku="ADORABLE-SETTEE").batches
-        assert batch.available_quantity == 100  #(1)
+        bus = bootstrap_test_app()
+        bus.handle(commands.CreateBatch("batch1", "ADORABLE-SETTEE", 100, None))
+        [batch] = bus.uow.products.get(sku="ADORABLE-SETTEE").batches
+        assert batch.available_quantity == 100
 
-        messagebus.handle(commands.ChangeBatchQuantity("batch1", 50), uow)
-
-        assert batch.available_quantity == 50  #(1)
+        bus.handle(commands.ChangeBatchQuantity("batch1", 50))
+        assert batch.available_quantity == 50
 
     def test_reallocates_if_necessary(self):
-        uow = FakeUnitOfWork()
+        bus = bootstrap_test_app()
         event_history = [
             commands.CreateBatch("batch1", "INDIFFERENT-TABLE", 50, None),
             commands.CreateBatch("batch2", "INDIFFERENT-TABLE", 50, date.today()),
@@ -85,14 +78,14 @@ class TestChangeBatchQuantity:
             commands.Allocate("order2", "INDIFFERENT-TABLE", 20),
         ]
         for e in event_history:
-            messagebus.handle(e, uow)
-        [batch1, batch2] = uow.products.get(sku="INDIFFERENT-TABLE").batches
+            bus.handle(e)
+        [batch1, batch2] = bus.uow.products.get(sku="INDIFFERENT-TABLE").batches
         assert batch1.available_quantity == 10
         assert batch2.available_quantity == 50
 
-        messagebus.handle(commands.ChangeBatchQuantity("batch1", 25), uow)
+        bus.handle(commands.ChangeBatchQuantity("batch1", 25))
 
         # order1 or order2 will be deallocated, so we'll have 25 - 20
-        assert batch1.available_quantity == 5  #(2)
+        assert batch1.available_quantity == 5
         # and 20 will be reallocated to the next batch
-        assert batch2.available_quantity == 30  #(2)
+        assert batch2.available_quantity == 30

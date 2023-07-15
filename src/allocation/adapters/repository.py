@@ -51,7 +51,6 @@ class SqlAlchemyRepository(AbstractProductRepository):
         return (
             self.session.query(model.Product)
             .filter_by(sku=sku)
-            .with_for_update()
             .first()
         )
 

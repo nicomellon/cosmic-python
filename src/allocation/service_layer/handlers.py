@@ -1,4 +1,5 @@
 from dataclasses import asdict
+from typing import Callable
 
 from sqlalchemy.sql import text
 
@@ -105,3 +106,22 @@ def publish_allocated_event(
     uow: unit_of_work.AbstractUnitOfWork,
 ):
     redis_eventpublisher.publish("line_allocated", event)
+
+
+EVENT_HANDLERS: dict[type[events.Event], list[Callable]] = {
+    events.Allocated: [
+        publish_allocated_event,
+        add_allocation_to_read_model,
+    ],
+    events.Deallocated: [
+        remove_allocation_from_read_model,
+        reallocate
+    ],
+    events.OutOfStock: [send_out_of_stock_notification],
+} 
+
+COMMAND_HANDLERS: dict[type[commands.Command], Callable] = {
+    commands.Allocate: allocate,
+    commands.CreateBatch: add_batch,
+    commands.ChangeBatchQuantity: change_batch_quantity,
+}
